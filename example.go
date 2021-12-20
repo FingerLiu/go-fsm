@@ -1,21 +1,12 @@
-# go-fsm
-An ease to use finit state machine golang implementation.Turn any struct to a fsm with graphviz visualization supported.
-
-# usage
-
-TODO
-
-# full example
-
-take order status as a full example
-
-```golang
 package main
 
 import (
 	"context"
-	"github.com/fingerliu/go-fsm/fsm"
+	"fmt"
+	"github.com/FingerLiu/go-fsm/fsm"
 )
+
+type OrderType string
 
 const (
 	OrderStatusCreated    = "created"
@@ -29,42 +20,45 @@ const (
 	// you can not cancel a virtual order once it is paid.
 
 	// normal flow for a physical order maybe: created -> paid -> checkout -> delivering -> delivered -> finished
-	OrderTypePhysical = "physical"
+	OrderTypePhysical OrderType = "physical"
 
 	// normal flow for a virtual order maybe: created -> paid -> finished
-	OrderTypeVirtual = "virtual"
+	OrderTypeVirtual OrderType = "virtual"
 )
 
 type OrderService struct {
-	Name   string
-	Type   string
-	Status string
-	fsm    *fsm.FSM
+	ID        int
+	Name      string
+	OrderType OrderType
+	Status    string
+	fsm       *fsm.FSM
 }
 
-func NewOrder() *OrderService {
-	orderService := &OrderService{}
+func NewOrder(id int, name string, orderType OrderType) *OrderService {
+	orderService := &OrderService{
+		ID:        id,
+		Name:      name,
+		OrderType: orderType,
+		Status:    OrderStatusCreated,
+	}
 	ctx := context.Background()
 	orderFsm := fsm.NewFSM(ctx).
-
 		// add state to fsm
-		AddStates(OrderStatusCreated, OrderStatusCancelled, OrderStatusPaid, OrderStatusCheckout, OrderStatusDelivering, OrderStatusDelivered, OrderStatusFinished).
-
-		//add trasition from S to E with condition check C
+		AddStates(OrderStatusCreated, OrderStatusCancelled,
+			OrderStatusPaid, OrderStatusCheckout,
+			OrderStatusDelivering, OrderStatusDelivered, OrderStatusFinished).
+		//add transition from S to E with condition check C
 		AddTransition(OrderStatusCreated, OrderStatusCancelled).
-
-		// add trasition on a condition
+		// add transition on a condition
 		AddTransitionOn(OrderStatusPaid, OrderStatusCancelled, orderService.IsPhysical).
-
 		// add hook for a specific state(enter/exit)
 		AddStateEnterHook(OrderStatusCancelled, orderService.stopDeliver).
-
-		// global hook is triggerred when state change(enter/exit) success.
+		// global hook is triggered when state change(enter/exit) success.
 		// here we use hook to save sate to order status field in database.
 		AddGlobalEnterHook(orderService.saveStatus)
 
 	orderService.fsm = orderFsm
-
+	fmt.Printf("order created %v\n", orderService)
 	return orderService
 }
 
@@ -87,18 +81,22 @@ func (o *OrderService) VisualizeFsm() string {
 	return o.fsm.Visualization()
 }
 
-func (o *OrderService) saveStatus(status string) error {
+func (o *OrderService) saveStatus(ctx context.Context, status string) {
 	// TODO save to database
-	return nil
+	return
 }
 
-func (o *OrderService) IsPhysical(status string) bool {
-	return o.Type == OrderTypeVirtual
+func (o *OrderService) IsPhysical(ctx context.Context, status string) (bool, error) {
+	return (o.OrderType) == OrderTypeVirtual, nil
 }
 
-func (o *OrderService) stopDeliver(status string) error {
+func (o *OrderService) stopDeliver(ctx context.Context, status string) {
 	// TODO save to database
-	return nil
+	return
 }
 
-```
+func main() {
+	fmt.Println("start fsm test with order")
+	order := NewOrder(1, "my_first_physical_order", OrderTypePhysical)
+	order.SetState(OrderStatusCancelled)
+}
