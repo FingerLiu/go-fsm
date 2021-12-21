@@ -76,4 +76,4 @@ func NewOrder(id int, name string, orderType OrderType) *OrderService {
     order.fsm.RenderGraphvizDot()
     order.fsm.RenderGraphvizImage("./demo.png")
 ```
-
+![graphviz](https://github.com/FingerLiu/go-fsm/raw/main/static/fsm/my_first_physical_order.png)
