@@ -3,8 +3,6 @@ An ease to use finit state machine golang implementation.Turn any struct to a fs
 
 # usage
 
-TODO
-
 # full example
 
 take order status as a full example
