@@ -10,6 +10,12 @@ https://github.com/FingerLiu/go-fsm/blob/main/fsm/visualization.go
 
 ## define fsm
 ```go
+import (
+    "context"
+    "fmt"
+    "github.com/FingerLiu/go-fsm/fsm"
+)
+
 func NewOrder(id int, name string, orderType OrderType) *OrderService {
 	orderService := &OrderService{
 		ID:        id,
@@ -76,4 +82,12 @@ func NewOrder(id int, name string, orderType OrderType) *OrderService {
     order.fsm.RenderGraphvizDot()
     order.fsm.RenderGraphvizImage("./demo.png")
 ```
+## singleton
+If you don't want instance a fsm for every object, 
+you can use singletonfsm.
+A singleton fsm does not have concept of current/setState,
+it serves as a stateless util.
 
+```go
+
+```
