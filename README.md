@@ -76,6 +76,6 @@ func NewOrder(id int, name string, orderType OrderType) *OrderService {
 ```go
     // you can gen dot file or a png image
     order.fsm.RenderGraphvizDot()
-    order.fsm.RenderGraphvizImage("./static/fsm/")
+    order.fsm.RenderGraphvizImage("./demo.png")
 ```
 

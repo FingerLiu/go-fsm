@@ -87,8 +87,8 @@ func (o *OrderService) GetCurrentStatus() string {
 }
 
 // output graphviz visualization
-func (o *OrderService) VisualizeFsm(filepath string) {
-	o.fsm.RenderGraphvizImage(filepath)
+func (o *OrderService) VisualizeFsm(filename string) {
+	o.fsm.RenderGraphvizImage(filename)
 }
 
 func (o *OrderService) saveStatus(ctx context.Context, status string) {
@@ -132,5 +132,5 @@ func main() {
 	fmt.Printf("[order] order status is %s\n", orderVirtual.GetCurrentStatus())
 
 	order.fsm.RenderGraphvizDot()
-	order.VisualizeFsm("./static/fsm/")
+	order.VisualizeFsm("./demo.png")
 }

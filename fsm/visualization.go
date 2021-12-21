@@ -27,7 +27,7 @@ func (f *FSM) RenderGraphvizDot() string {
 	return dot
 }
 
-func (f *FSM) RenderGraphvizImage(path string) {
+func (f *FSM) RenderGraphvizImage(filename string) {
 	g, graph := f.buildGraphviz()
 	defer func() {
 		if err := graph.Close(); err != nil {
@@ -35,8 +35,12 @@ func (f *FSM) RenderGraphvizImage(path string) {
 		}
 		g.Close()
 	}()
-	if path == "" {
-		path = "./static/fsm/"
+	if filename == "" {
+		imageName := f.name
+		if f.name == "" {
+			imageName = "demo"
+		}
+		filename = fmt.Sprintf("./%s.png", imageName)
 	}
 
 	// 1. write encoded PNG data to buffer
@@ -52,7 +56,6 @@ func (f *FSM) RenderGraphvizImage(path string) {
 	}
 
 	// 3. write to file directly
-	filename := fmt.Sprintf("%s/%s.png", path, f.name)
 	if err := g.RenderFilename(graph, graphviz.PNG, filename); err != nil {
 		log.Fatal(err)
 	}
