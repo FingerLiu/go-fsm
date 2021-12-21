@@ -6,7 +6,7 @@ An ease to use finit state machine golang implementation.Turn any struct to a fs
 # full example
 
 take order status as a full example
-https://github.com/FingerLiu/go-fsm/blob/main/fsm/visualization.go
+https://github.com/FingerLiu/go-fsm/blob/main/example.go
 
 ## define fsm
 ```go
