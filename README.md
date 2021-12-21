@@ -8,97 +8,74 @@ TODO
 # full example
 
 take order status as a full example
+https://github.com/FingerLiu/go-fsm/blob/main/fsm/visualization.go
 
-```golang
-package main
-
-import (
-	"context"
-	"github.com/fingerliu/go-fsm/fsm"
-)
-
-const (
-	OrderStatusCreated    = "created"
-	OrderStatusCancelled  = "cancelled"
-	OrderStatusPaid       = "paid"
-	OrderStatusCheckout   = "checkout"
-	OrderStatusDelivering = "delivering"
-	OrderStatusDelivered  = "delivered"
-	OrderStatusFinished   = "finished"
-
-	// you can not cancel a virtual order once it is paid.
-
-	// normal flow for a physical order maybe: created -> paid -> checkout -> delivering -> delivered -> finished
-	OrderTypePhysical = "physical"
-
-	// normal flow for a virtual order maybe: created -> paid -> finished
-	OrderTypeVirtual = "virtual"
-)
-
-type OrderService struct {
-	Name   string
-	Type   string
-	Status string
-	fsm    *fsm.FSM
-}
-
-func NewOrder() *OrderService {
-	orderService := &OrderService{}
+## define fsm
+```go
+func NewOrder(id int, name string, orderType OrderType) *OrderService {
+	orderService := &OrderService{
+		ID:        id,
+		Name:      name,
+		OrderType: orderType,
+		Status:    OrderStatusCreated,
+	}
 	ctx := context.Background()
-	orderFsm := fsm.NewFSM(ctx).
-
+	orderFsm := fsm.NewFSM(ctx, name).
 		// add state to fsm
-		AddStates(OrderStatusCreated, OrderStatusCancelled, OrderStatusPaid, OrderStatusCheckout, OrderStatusDelivering, OrderStatusDelivered, OrderStatusFinished).
-
-		//add trasition from S to E with condition check C
+		AddStates(OrderStatusCreated, OrderStatusCancelled,
+			OrderStatusPaid, OrderStatusCheckout,
+			OrderStatusDelivering, OrderStatusDelivered, OrderStatusFinished).
+		//add transition from S to E with condition check C
 		AddTransition(OrderStatusCreated, OrderStatusCancelled).
-
-		// add trasition on a condition
+		AddTransition(OrderStatusCreated, OrderStatusPaid).
+		AddTransition(OrderStatusPaid, OrderStatusCheckout).
+		AddTransition(OrderStatusCheckout, OrderStatusDelivering).
+		AddTransition(OrderStatusDelivering, OrderStatusDelivered).
+		AddTransition(OrderStatusDelivered, OrderStatusFinished).
+		//virtual order do not need deliver
+		AddTransitionOn(OrderStatusCheckout, OrderStatusFinished, orderService.IsVirtual).
+		// add transition on a condition
 		AddTransitionOn(OrderStatusPaid, OrderStatusCancelled, orderService.IsPhysical).
-
 		// add hook for a specific state(enter/exit)
 		AddStateEnterHook(OrderStatusCancelled, orderService.stopDeliver).
-
-		// global hook is triggerred when state change(enter/exit) success.
+		// global hook is triggered when state change(enter/exit) success.
 		// here we use hook to save sate to order status field in database.
 		AddGlobalEnterHook(orderService.saveStatus)
 
+	orderFsm.SetState(orderService.Status)
+
 	orderService.fsm = orderFsm
 
+	fmt.Printf("[order] order created %v\n", orderService)
 	return orderService
 }
 
-// force set state
-func (o *OrderService) SetState(status string) error {
-	return nil
-}
+```
 
-// transit to destination state
-func (o *OrderService) Transit(status string) error {
-	return o.fsm.Transit(status)
-}
+## transit
+```go
+	fmt.Println("------ start transit virtual order ------")
+	order := NewOrder(1, "my_first_physical_order", OrderTypePhysical)
+	order.Transit(OrderStatusPaid)
+	
+	// this will fail because condition check not met
+	// and order status will stay in paid
+	order.Transit(OrderStatusCancelled)
+	fmt.Printf("[order] order status is %s\n", order.GetCurrentStatus())
 
-func (o *OrderService) GetCurrentStatus() string {
-	return o.fsm.GetCurrentState()
-}
-
-// output graphviz visualization
-func (o *OrderService) VisualizeFsm() string {
-	return o.fsm.Visualization()
-}
-
-func (o *OrderService) saveStatus(status string) error {
-	// TODO save to database
-	return nil
-}
-
-func (o *OrderService) IsPhysical(status string) bool {
-	return o.Type == OrderTypeVirtual
-}
-
-func (o *OrderService) stopDeliver(status string) error {
-	// TODO save to database
-	return nil
-}
+	fmt.Println("------ start transit physical order ------")
+	
+	orderVirtual := NewOrder(1, "my_first_physical_order", OrderTypeVirtual)
+	orderVirtual.Transit(OrderStatusPaid)
+	// this will pass
+	orderVirtual.Transit(OrderStatusCancelled)
+	fmt.Printf("[order] order status is %s\n", orderVirtual.GetCurrentStatus())
 
 ```
+## visualization
+```go
+    // you can gen dot file or a png image
+    order.fsm.RenderGraphvizDot()
+    order.fsm.RenderGraphvizImage("./static/fsm/")
+```
+

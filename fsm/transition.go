@@ -6,17 +6,17 @@ import (
 )
 
 type Transition struct {
-	From *State
-	To *State
-	Key string
+	From      *State
+	To        *State
+	Key       string
 	Condition func(ctx context.Context, currentState string) (bool, error)
 }
 
 func NewTransition(from, to *State, condition func(ctx context.Context, currentState string) (bool, error)) *Transition {
 	return &Transition{
-		From: from,
-		To: to,
-		Key: GenTransitionKey(from.Name, to.Name),
+		From:      from,
+		To:        to,
+		Key:       GenTransitionKey(from.Name, to.Name),
 		Condition: condition,
 	}
 }

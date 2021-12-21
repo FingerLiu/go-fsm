@@ -4,18 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 )
 
 type FSM struct {
-	states []*State
-	transitions []*Transition
-	hooks []interface{}
-	currentState *State
-	ctx context.Context
+	name            string
+	states          []*State
+	transitions     []*Transition
+	globalEnterHook func(ctx context.Context, state string)
+	globalExitHook  func(ctx context.Context, state string)
+	currentState    *State
+	ctx             context.Context
 }
 
-func NewFSM(ctx context.Context) *FSM {
-	return &FSM{ctx: ctx}
+func NewFSM(ctx context.Context, name string) *FSM {
+	return &FSM{ctx: ctx, name: name}
 }
 
 // build fsm
@@ -59,14 +62,14 @@ func (f *FSM) getTransition(from, to string) *Transition {
 
 func (f *FSM) AddState(state string) *FSM {
 	if f.hasState(state) {
-		fmt.Errorf("state already defined %s", state)
+		log.Fatalf("[fsm]state already defined %s", state)
 		return nil
 	}
 	f.states = append(f.states, &State{Name: state})
 	return f
 }
 
-func (f *FSM) AddStates(state... string) *FSM {
+func (f *FSM) AddStates(state ...string) *FSM {
 	for _, s := range state {
 		f.AddState(s)
 	}
@@ -77,13 +80,13 @@ func (f *FSM) AddTransition(from, to string) *FSM {
 	return f.AddTransitionOn(from, to, nil)
 }
 
-func (f *FSM) AddTransitionOn(from, to string, condition func(ctx context.Context, state string)(bool, error)) *FSM {
+func (f *FSM) AddTransitionOn(from, to string, condition func(ctx context.Context, state string) (bool, error)) *FSM {
 	if !f.hasState(from) {
-		fmt.Errorf("state not defined %s", from)
+		log.Fatalf("\t[fsm] state not defined %s", from)
 		return nil
 	}
 	if !f.hasState(to) {
-		fmt.Errorf("state not defined %s", to)
+		log.Fatalf("\t[fsm] state not defined %s", to)
 		return nil
 	}
 	if !f.hasTransition(from, to) {
@@ -91,7 +94,7 @@ func (f *FSM) AddTransitionOn(from, to string, condition func(ctx context.Contex
 		toState := f.getState(to)
 		f.transitions = append(f.transitions, NewTransition(fromState, toState, condition))
 	} else {
-		fmt.Printf("Skipped add transition due to transition exists. from %s to %s\n",
+		log.Printf("\t[fsm] Skipped add transition due to transition exists. from %s to %s\n",
 			from, to)
 	}
 
@@ -105,10 +108,11 @@ func (f *FSM) AddTransitionOn(from, to string, condition func(ctx context.Contex
 func (f *FSM) SetState(state string) error {
 	s := f.getState(state)
 	if s == nil {
-		err := errors.New(fmt.Sprintf("state not defined %s", state))
-		fmt.Print(err)
+		err := errors.New(fmt.Sprintf("\t[fsm] state not defined %s", state))
+		log.Print(err)
 		return err
 	}
+	log.Printf("\t[fsm] set status to %s\n", state)
 	f.setState(s)
 	return nil
 }
@@ -118,21 +122,29 @@ func (f *FSM) Transit(state string) error {
 	availableTransitions := f.getAvailableTransitions(f.currentState.Name)
 	for _, transition := range availableTransitions {
 		if transition.To.Name == state {
+			log.Printf("\t[fsm] transit status to %s\n", state)
 			return f.doTransit(transition)
 		}
 	}
-	return nil
+	err := errors.New(fmt.Sprintf("\t[fsm] transition from %s to %s not found", f.currentState.Name, state))
+	log.Println(err.Error())
+	return err
 }
 
 // check condition and set state
 func (f *FSM) doTransit(transition *Transition) error {
-	fmt.Printf("start condition check for transit(%s)\n", transition.Key)
-	if flag, err := transition.Condition(f.ctx, f.GetCurrentState()); err != nil {
-		fmt.Printf("transit(%s) condition check err %s\n", transition.Key, err)
-		return err
-	}  else if flag == false {
-		err = errors.New(fmt.Sprintf("transit(%s) condition not met", transition.Key))
-		return err
+	log.Printf("\t[fsm] start condition check for transit(%s)\n", transition.Key)
+	if transition.Condition != nil {
+		if flag, err := transition.Condition(f.ctx, f.GetCurrentState()); err != nil {
+			log.Printf("\t[fsm] transit(%s) condition check err %s\n", transition.Key, err)
+			return err
+		} else if flag == false {
+			err = errors.New(fmt.Sprintf("[fsm] transit(%s) condition not met", transition.Key))
+			log.Printf("\t[fsm] transit(%s) condition check err %s\n", transition.Key, err)
+			return err
+		}
+	} else {
+		log.Printf("\t[fsm] skipped condition check for transit(%s) due to condition is nil\n", transition.Key)
 	}
 
 	f.setState(transition.To)
@@ -140,8 +152,12 @@ func (f *FSM) doTransit(transition *Transition) error {
 }
 
 // setState will execute state hooks and global hooks
-func (f *FSM) setState(state *State)  {
+func (f *FSM) setState(state *State) {
+	f.executeGlobalEnterHook(state)
+	f.executeEnterHook(state)
 	f.currentState = state
+	f.executeExitHook(state)
+	f.executeGlobalExitHook(state)
 }
 
 /***** retrieve fsm  *****/
