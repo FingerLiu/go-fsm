@@ -16,8 +16,8 @@ import (
     "github.com/FingerLiu/go-fsm/fsm"
 )
 
-func NewOrder(id int, name string, orderType OrderType) *OrderService {
-	orderService := &OrderService{
+func NewOrder(id int, name string, orderType OrderType) *Order {
+	order := &Order{
 		ID:        id,
 		Name:      name,
 		OrderType: orderType,
@@ -37,7 +37,7 @@ func NewOrder(id int, name string, orderType OrderType) *OrderService {
 		AddTransition(OrderStatusDelivering, OrderStatusDelivered).
 		AddTransition(OrderStatusDelivered, OrderStatusFinished).
 		//virtual order do not need deliver
-		AddTransitionOn(OrderStatusCheckout, OrderStatusFinished, orderService.IsVirtual).
+		AddTransitionOn(OrderStatusCheckout, OrderStatusFinished, Order.IsVirtual).
 		// add transition on a condition
 		AddTransitionOn(OrderStatusPaid, OrderStatusCancelled, orderService.IsPhysical).
 		// add hook for a specific state(enter/exit)
@@ -50,8 +50,8 @@ func NewOrder(id int, name string, orderType OrderType) *OrderService {
 
 	orderService.fsm = orderFsm
 
-	fmt.Printf("[order] order created %v\n", orderService)
-	return orderService
+	fmt.Printf("[order] order created %v\n", order)
+	return order
 }
 
 ```
@@ -89,5 +89,15 @@ A singleton fsm does not have concept of current/setState,
 it serves as a stateless util.
 
 ```go
+	log.Println("start singletonfsm test with order")
+	orderV2Service := NewOrderV2Service()
+	orderPhysical := NewOrderV2(1, "my_first_physical_order", OrderTypePhysical)
+	orderVirtual := NewOrderV2(1, "my_first_physical_order", OrderTypeVirtual)
 
+	log.Println("------ start transit physical order ------")
+	ctx := context.Background()
+	ctx1 := context.WithValue(ctx, "order", orderPhysical)
+	orderV2Service.Transit(ctx1, orderPhysical.Status, OrderStatusPaid)
+	orderV2Service.Transit(ctx1, orderPhysical.Status, OrderStatusCancelled)
+	log.Printf("[order] order status is %s\n", orderPhysical.Status)
 ```

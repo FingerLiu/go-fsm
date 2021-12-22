@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/FingerLiu/go-fsm/fsm"
+	"log"
 )
 
 type OrderType string
@@ -26,7 +26,7 @@ const (
 	OrderTypeVirtual OrderType = "virtual"
 )
 
-type OrderService struct {
+type Order struct {
 	ID        int
 	Name      string
 	OrderType OrderType
@@ -34,8 +34,8 @@ type OrderService struct {
 	fsm       *fsm.FSM
 }
 
-func NewOrder(id int, name string, orderType OrderType) *OrderService {
-	orderService := &OrderService{
+func NewOrder(id int, name string, orderType OrderType) *Order {
+	order := &Order{
 		ID:        id,
 		Name:      name,
 		OrderType: orderType,
@@ -55,82 +55,82 @@ func NewOrder(id int, name string, orderType OrderType) *OrderService {
 		AddTransition(OrderStatusDelivering, OrderStatusDelivered).
 		AddTransition(OrderStatusDelivered, OrderStatusFinished).
 		//virtual order do not need deliver
-		AddTransitionOn(OrderStatusCheckout, OrderStatusFinished, orderService.IsVirtual).
+		AddTransitionOn(OrderStatusCheckout, OrderStatusFinished, order.IsVirtual).
 		// add transition on a condition
-		AddTransitionOn(OrderStatusPaid, OrderStatusCancelled, orderService.IsPhysical).
+		AddTransitionOn(OrderStatusPaid, OrderStatusCancelled, order.IsPhysical).
 		// add hook for a specific state(enter/exit)
-		AddStateEnterHook(OrderStatusCancelled, orderService.stopDeliver).
+		AddStateEnterHook(OrderStatusCancelled, order.stopDeliver).
 		// global hook is triggered when state change(enter/exit) success.
 		// here we use hook to save sate to order status field in database.
-		AddGlobalEnterHook(orderService.saveStatus)
+		AddGlobalEnterHook(order.saveStatus)
 
-	orderFsm.SetState(orderService.Status)
+	orderFsm.SetState(order.Status)
 
-	orderService.fsm = orderFsm
+	order.fsm = orderFsm
 
-	fmt.Printf("[order] order created %v\n", orderService)
-	return orderService
+	log.Printf("[order] order created %v\n", order)
+	return order
 }
 
 // force set state
-func (o *OrderService) SetState(status string) error {
+func (o *Order) SetState(status string) error {
 	return o.fsm.SetState(status)
 }
 
 // transit to destination state
-func (o *OrderService) Transit(status string) error {
+func (o *Order) Transit(status string) error {
 	return o.fsm.Transit(status)
 }
 
-func (o *OrderService) GetCurrentStatus() string {
+func (o *Order) GetCurrentStatus() string {
 	return o.fsm.GetCurrentState()
 }
 
 // output graphviz visualization
-func (o *OrderService) VisualizeFsm(filename string) {
+func (o *Order) VisualizeFsm(filename string) {
 	o.fsm.RenderGraphvizImage(filename)
 }
 
-func (o *OrderService) saveStatus(ctx context.Context, status string) {
+func (o *Order) saveStatus(ctx context.Context, status string) {
 	// TODO save to database
-	fmt.Printf("[order]saved order to db with status %s\n", status)
+	log.Printf("[order]saved order to db with status %s\n", status)
 	return
 }
 
-func (o *OrderService) IsPhysical(ctx context.Context, status string) (bool, error) {
+func (o *Order) IsPhysical(ctx context.Context, status string) (bool, error) {
 	res := (o.OrderType) == OrderTypePhysical
-	fmt.Printf("[order] IsPhysical return %v\n", res)
+	log.Printf("[order] IsPhysical return %v\n", res)
 	return res, nil
 }
 
-func (o *OrderService) IsVirtual(ctx context.Context, status string) (bool, error) {
+func (o *Order) IsVirtual(ctx context.Context, status string) (bool, error) {
 	res := (o.OrderType) == OrderTypeVirtual
-	fmt.Printf("[order] IsVirtual return %v\n", res)
+	log.Printf("[order] IsVirtual return %v\n", res)
 	return res, nil
 }
 
-func (o *OrderService) stopDeliver(ctx context.Context, status string) {
+func (o *Order) stopDeliver(ctx context.Context, status string) {
 	// TODO call deliver sub system to stop
-	fmt.Printf("[order] stop deliver order with status %s\n", status)
+	log.Printf("[order] stop deliver order with status %s\n", status)
 	return
 }
 
 func main() {
-	fmt.Println("start fsm test with order")
+	log.Println("start fsm test with order")
 	order := NewOrder(1, "my_first_physical_order", OrderTypePhysical)
-	fmt.Printf("[order] order status is %s\n", order.GetCurrentStatus())
+	log.Printf("[order] order status is %s\n", order.GetCurrentStatus())
 	order.Transit(OrderStatusPaid)
 	order.Transit(OrderStatusCancelled)
-	fmt.Printf("[order] order status is %s\n", order.GetCurrentStatus())
+	log.Printf("[order] order status is %s\n", order.GetCurrentStatus())
 
-	fmt.Println("------ start transit virtual order ------")
-	fmt.Println("[order] start fsm test with order")
+	log.Println("------ start transit virtual order ------")
+	log.Println("[order] start fsm test with order")
 	orderVirtual := NewOrder(1, "my_first_physical_order", OrderTypeVirtual)
-	fmt.Printf("[order] order status is %s\n", orderVirtual.GetCurrentStatus())
+	log.Printf("[order] order status is %s\n", orderVirtual.GetCurrentStatus())
 	orderVirtual.Transit(OrderStatusPaid)
 	orderVirtual.Transit(OrderStatusCancelled)
-	fmt.Printf("[order] order status is %s\n", orderVirtual.GetCurrentStatus())
+	log.Printf("[order] order status is %s\n", orderVirtual.GetCurrentStatus())
 
-	order.fsm.RenderGraphvizDot()
+	//order.fsm.RenderGraphvizDot()
 	order.VisualizeFsm("./demo.png")
 }

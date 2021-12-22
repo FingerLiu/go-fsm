@@ -1,6 +1,5 @@
 package singletonfsm
 
-
 import (
 	"context"
 	"errors"
@@ -14,11 +13,10 @@ type FSM struct {
 	transitions     []*Transition
 	globalEnterHook func(ctx context.Context, state string)
 	globalExitHook  func(ctx context.Context, state string)
-	ctx             context.Context
 }
 
-func NewFSM(ctx context.Context, name string) *FSM {
-	return &FSM{ctx: ctx, name: name}
+func NewFSM(name string) *FSM {
+	return &FSM{name: name}
 }
 
 // build fsm
@@ -103,14 +101,13 @@ func (f *FSM) AddTransitionOn(from, to string, condition func(ctx context.Contex
 
 /***** transit fsm  *****/
 
-
 // transit from current state to the given state
-func (f *FSM) Transit(from, to string) error {
+func (f *FSM) Transit(ctx context.Context, from, to string) error {
 	availableTransitions := f.getAvailableTransitions(from)
 	for _, transition := range availableTransitions {
 		if transition.To.Name == to {
 			log.Printf("\t[fsm] transit status to %s\n", to)
-			return f.doTransit(transition)
+			return f.doTransit(ctx, transition)
 		}
 	}
 	err := errors.New(fmt.Sprintf("\t[fsm] transition from %s to %s not found",
@@ -120,10 +117,10 @@ func (f *FSM) Transit(from, to string) error {
 }
 
 // check condition and set state
-func (f *FSM) doTransit(transition *Transition) error {
+func (f *FSM) doTransit(ctx context.Context, transition *Transition) error {
 	log.Printf("\t[fsm] start condition check for transit(%s)\n", transition.Key)
 	if transition.Condition != nil {
-		if flag, err := transition.Condition(f.ctx, transition.From.Name); err != nil {
+		if flag, err := transition.Condition(ctx, transition.From.Name); err != nil {
 			log.Printf("\t[fsm] transit(%s) condition check err %s\n", transition.Key, err)
 			return err
 		} else if flag == false {
@@ -135,21 +132,20 @@ func (f *FSM) doTransit(transition *Transition) error {
 		log.Printf("\t[fsm] skipped condition check for transit(%s) due to condition is nil\n", transition.Key)
 	}
 
-	f.setState(transition.To)
+	f.setState(ctx, transition.To)
 	return nil
 }
 
 // setState will execute state hooks and global hooks
-func (f *FSM) setState(state *State) {
-	f.executeGlobalEnterHook(state)
-	f.executeEnterHook(state)
+func (f *FSM) setState(ctx context.Context, state *State) {
+	f.executeGlobalEnterHook(ctx, state)
+	f.executeEnterHook(ctx, state)
 
-	f.executeExitHook(state)
-	f.executeGlobalExitHook(state)
+	f.executeExitHook(ctx, state)
+	f.executeGlobalExitHook(ctx, state)
 }
 
 /***** retrieve fsm  *****/
-
 
 func (f *FSM) GetAvailableStateNames(from string) []string {
 	states := f.getAvailableStates(from)
