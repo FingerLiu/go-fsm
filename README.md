@@ -6,7 +6,10 @@ An ease to use finit state machine golang implementation.Turn any struct to a fs
 # full example
 
 take order status as a full example
-https://github.com/FingerLiu/go-fsm/blob/main/fsm/visualization.go
+https://github.com/FingerLiu/go-fsm/blob/main/example.go
+
+or the singleton version
+https://github.com/FingerLiu/go-fsm/blob/main/example_singleton.go
 
 ## define fsm
 ```go
@@ -76,12 +79,7 @@ func NewOrder(id int, name string, orderType OrderType) *Order {
 	fmt.Printf("[order] order status is %s\n", orderVirtual.GetCurrentStatus())
 
 ```
-## visualization
-```go
-    // you can gen dot file or a png image
-    order.fsm.RenderGraphvizDot()
-    order.fsm.RenderGraphvizImage("./demo.png")
-```
+
 ## singleton
 If you don't want instance a fsm for every object, 
 you can use singletonfsm.
@@ -101,3 +99,12 @@ it serves as a stateless util.
 	orderV2Service.Transit(ctx1, orderPhysical.Status, OrderStatusCancelled)
 	log.Printf("[order] order status is %s\n", orderPhysical.Status)
 ```
+
+## visualization
+```go
+    // you can gen dot file or a png image
+    order.fsm.RenderGraphvizDot()
+    order.fsm.RenderGraphvizImage("./demo.png")
+```
+![graphviz](https://github.com/FingerLiu/go-fsm/raw/main/static/fsm/my_first_physical_order.png)
+
