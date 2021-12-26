@@ -8,6 +8,7 @@ import (
 	"log"
 	"reflect"
 	"runtime"
+	"strings"
 )
 
 func (f *FSM) RenderGraphvizDot() string {
@@ -86,5 +87,7 @@ func (f *FSM) buildGraphviz() (*graphviz.Graphviz, *cgraph.Graph) {
 }
 
 func getFunctionName(i interface{}) string {
-	return runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+	fullName := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+	names := strings.Split(fullName, ".")
+	return names[len(names)-1]
 }
